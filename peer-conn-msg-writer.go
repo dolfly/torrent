@@ -111,6 +111,10 @@ func (cn *peerConnMsgWriter) run(keepAliveTimeout time.Duration) {
 func (cn *peerConnMsgWriter) write(msg pp.Message) bool {
 	cn.mu.Lock()
 	defer cn.mu.Unlock()
+	return cn.writeLocked(msg)
+}
+
+func (cn *peerConnMsgWriter) writeLocked(msg pp.Message) bool {
 	cn.writeBuffer.Write(msg.MustMarshalBinary())
 	cn.writeCond.Broadcast()
 	return !cn.writeBufferFull()

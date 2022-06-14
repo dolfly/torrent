@@ -469,11 +469,19 @@ const (
 // Writes a message into the write buffer. Returns whether it's okay to keep writing. Writing is
 // done asynchronously, so it may be that we're not able to honour backpressure from this method.
 func (cn *PeerConn) write(msg pp.Message) bool {
+	cn.messageWriter.mu.Lock()
+	defer cn.messageWriter.mu.Unlock()
+	return cn.writeLocked(msg)
+}
+
+// Writes a message into the write buffer. Returns whether it's okay to keep writing. Writing is
+// done asynchronously, so it may be that we're not able to honour backpressure from this method.
+func (cn *PeerConn) writeLocked(msg pp.Message) bool {
 	torrent.Add(fmt.Sprintf("messages written of type %s", msg.Type.String()), 1)
 	// We don't need to track bytes here because the connection's Writer has that behaviour injected
 	// (although there's some delay between us buffering the message, and the connection writer
 	// flushing it out.).
-	notFull := cn.messageWriter.write(msg)
+	notFull := cn.messageWriter.writeLocked(msg)
 	// Last I checked only Piece messages affect stats, and we don't write those.
 	cn.wroteMsg(&msg)
 	cn.tickleWriter()
@@ -701,7 +709,7 @@ func (cn *PeerConn) fillWriteBuffer() {
 			return
 		}
 	}
-	cn.upload(cn.write)
+	cn.upload()
 }
 
 func (cn *PeerConn) have(piece pieceIndex) {
@@ -1565,13 +1573,18 @@ func (c *PeerConn) setRetryUploadTimer(delay time.Duration) {
 }
 
 // Also handles choking and unchoking of the remote peer.
-func (c *PeerConn) upload(msg func(pp.Message) bool) bool {
-	// Breaking or completing this loop means we don't want to upload to the
-	// peer anymore, and we choke them.
+func (c *PeerConn) upload() bool {
+	// Breaking or completing this loop means we don't want to upload to the peer anymore, and we
+	// choke them.
+	c.messageWriter.mu.Lock()
+	defer c.messageWriter.mu.Unlock()
 another:
+	if c.messageWriter.writeBufferFull() {
+		return false
+	}
 	for c.uploadAllowed() {
 		// We want to upload to the peer.
-		if !c.unchoke(msg) {
+		if !c.unchoke(c.writeLocked) {
 			return false
 		}
 		for r, state := range c.peerRequests {
@@ -1589,7 +1602,7 @@ another:
 				// Hard to say what to return here.
 				return true
 			}
-			more := c.sendChunk(r, msg, state)
+			more := c.sendChunk(r, c.writeLocked, state)
 			delete(c.peerRequests, r)
 			if !more {
 				return false
@@ -1598,7 +1611,7 @@ another:
 		}
 		return true
 	}
-	return c.choke(msg)
+	return c.choke(c.writeLocked)
 }
 
 func (cn *PeerConn) drop() {
