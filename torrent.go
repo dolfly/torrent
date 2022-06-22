@@ -2008,12 +2008,14 @@ func (t *Torrent) pieceHashed(piece pieceIndex, passed bool, hashIoErr error) {
 		}
 		t.clearPieceTouchers(piece)
 		t.cl.unlock()
+		if p.hasDirtyChunks() {
+			p.Storage().Flush() // You can be synchronous here!
+		}
 		err := p.Storage().MarkComplete()
 		if err != nil {
 			t.logger.Printf("%T: error marking piece complete %d: %s", t.storage, piece, err)
 		}
 		t.cl.lock()
-
 		if t.closed.IsSet() {
 			return
 		}
@@ -2088,7 +2090,6 @@ func (t *Torrent) onPieceCompleted(piece pieceIndex) {
 		conn.have(piece)
 		t.maybeDropMutuallyCompletePeer(&conn.Peer)
 	}
-	t.piece(piece).Storage().MarkComplete()
 }
 
 // Called when a piece is found to be not complete.
