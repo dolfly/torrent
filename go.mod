@@ -9,7 +9,7 @@ require (
 	github.com/alexflint/go-arg v1.4.3
 	github.com/anacrolix/bargle v0.0.0-20220630015206-d7a4d433886a
 	github.com/anacrolix/chansync v0.3.0
-	github.com/anacrolix/dht/v2 v2.19.0
+	github.com/anacrolix/dht/v2 v2.19.1-0.20220927021255-29c8ee3eeebf
 	github.com/anacrolix/envpprof v1.2.1
 	github.com/anacrolix/fuse v0.2.0
 	github.com/anacrolix/generics v0.0.0-20220618083756-f99e35403a60
