@@ -115,3 +115,5 @@ retract (
 	// peer-requesting doesn't scale
 	[v1.34.0, v1.38.1]
 )
+
+exclude github.com/anacrolix/dht/v2 v2.15.2-0.20220123034220-0538803801cb
